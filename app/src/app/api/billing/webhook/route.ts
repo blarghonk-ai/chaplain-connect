@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
   switch (event.type) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
-      const sub = event.data.object
+      // Cast to any — Stripe subscription shape varies by API version
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sub = event.data.object as any
       const customerId = sub.customer as string
 
       const { data: org } = await supabase
@@ -36,14 +38,21 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (org) {
+        const periodStart = sub.current_period_start
+          ? new Date(sub.current_period_start * 1000).toISOString()
+          : null
+        const periodEnd = sub.current_period_end
+          ? new Date(sub.current_period_end * 1000).toISOString()
+          : null
+
         await supabase
           .from('subscriptions')
           .upsert({
             org_id: org.id,
             stripe_subscription_id: sub.id,
             status: sub.status,
-            period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            period_end: new Date(sub.current_period_end * 1000).toISOString(),
+            period_start: periodStart,
+            period_end: periodEnd,
           }, { onConflict: 'org_id' })
       }
       break
