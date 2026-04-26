@@ -27,7 +27,8 @@ export default async function DashboardLayout({
     .join('')
     .toUpperCase() ?? '?'
 
-  const org = profile?.organizations as { name: string } | null
+  const orgs = profile?.organizations as { name: string }[] | { name: string } | null
+  const org = Array.isArray(orgs) ? orgs[0] : orgs
 
   return (
     <div className="min-h-screen flex">

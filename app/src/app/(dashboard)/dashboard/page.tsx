@@ -17,7 +17,8 @@ export default async function DashboardPage() {
 
   if (!profile?.org_id) redirect('/onboarding')
 
-  const org = profile.organizations as { name: string; tier: string; slug: string } | null
+  const orgs = profile.organizations as { name: string; tier: string; slug: string }[] | { name: string; tier: string; slug: string } | null
+  const org = Array.isArray(orgs) ? orgs[0] : orgs
 
   return (
     <div className="p-6 space-y-6">
