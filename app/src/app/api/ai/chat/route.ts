@@ -1,13 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import Groq from 'groq-sdk'
 
-const OLLAMA_URL = process.env.OLLAMA_URL ?? 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'llama3.2'
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+const MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json({ error: 'AI assistant is not configured. Add GROQ_API_KEY to your environment.' }, { status: 503 })
+  }
 
   const { message, conversationId } = await request.json()
   if (!message?.trim()) return NextResponse.json({ error: 'message required' }, { status: 400 })
@@ -55,27 +60,17 @@ export async function POST(request: NextRequest) {
 - Empathetic, non-judgmental responses grounded in faith
 Keep responses concise, warm, and spiritually grounded.`
 
-  // Call Ollama
   try {
-    const ollamaRes = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...(history ?? []).map(m => ({ role: m.role, content: m.content })),
-        ],
-        stream: false,
-      }),
+    const completion = await groq.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...(history ?? []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      ],
+      max_tokens: 1024,
     })
 
-    if (!ollamaRes.ok) {
-      throw new Error(`Ollama returned ${ollamaRes.status}`)
-    }
-
-    const ollamaData = await ollamaRes.json()
-    const assistantContent: string = ollamaData.message?.content ?? ''
+    const assistantContent = completion.choices[0]?.message?.content ?? ''
 
     // Save assistant response
     await supabase.from('ai_messages').insert({
@@ -85,9 +80,10 @@ Keep responses concise, warm, and spiritually grounded.`
     })
 
     return NextResponse.json({ reply: assistantContent, conversationId: convId })
-  } catch {
+  } catch (err) {
+    console.error('[ai/chat] Groq error:', err)
     return NextResponse.json(
-      { error: 'AI assistant is not available. Please ensure Ollama is running.', conversationId: convId },
+      { error: 'AI assistant is unavailable. Please try again shortly.', conversationId: convId },
       { status: 503 }
     )
   }

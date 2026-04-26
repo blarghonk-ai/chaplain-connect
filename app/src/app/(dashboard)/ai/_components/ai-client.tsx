@@ -13,7 +13,7 @@ export default function AIClient() {
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(false)
   const [convId, setConvId] = useState<string | null>(null)
-  const [ollamaDown, setOllamaDown] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -24,9 +24,9 @@ export default function AIClient() {
     if (!draft.trim() || loading) return
     const userMsg = draft.trim()
     setDraft('')
+    setError(null)
     setMessages(prev => [...prev, { role: 'user', content: userMsg }])
     setLoading(true)
-    setOllamaDown(false)
 
     const res = await fetch('/api/ai/chat', {
       method: 'POST',
@@ -35,12 +35,11 @@ export default function AIClient() {
     })
 
     const data = await res.json()
-
     if (data.conversationId) setConvId(data.conversationId)
 
-    if (res.status === 503 || data.error) {
-      setOllamaDown(true)
-      setMessages(prev => prev.slice(0, -1)) // remove optimistic user msg
+    if (!res.ok || data.error) {
+      setError(data.error ?? 'Something went wrong. Please try again.')
+      setMessages(prev => prev.slice(0, -1))
       setDraft(userMsg)
     } else {
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
@@ -51,12 +50,9 @@ export default function AIClient() {
 
   return (
     <div className="flex flex-1 flex-col p-6 pt-4 min-h-0">
-      {ollamaDown && (
-        <div className="mb-3 p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm">
-          <strong>Ollama is not running.</strong> Start Ollama locally with{' '}
-          <code className="bg-amber-100 px-1 rounded">ollama serve</code> and ensure the{' '}
-          <code className="bg-amber-100 px-1 rounded">llama3.2</code> model is pulled.
-          Set <code className="bg-amber-100 px-1 rounded">OLLAMA_URL</code> in your environment if using a remote server.
+      {error && (
+        <div className="mb-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-sm">
+          {error}
         </div>
       )}
 
@@ -77,7 +73,7 @@ export default function AIClient() {
                 ].map(prompt => (
                   <button
                     key={prompt}
-                    onClick={() => { setDraft(prompt) }}
+                    onClick={() => setDraft(prompt)}
                     className="text-xs border rounded-full px-3 py-1 hover:bg-muted transition-colors"
                   >
                     {prompt}
