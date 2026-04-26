@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 type Org = {
   id: string
@@ -96,9 +97,12 @@ export default function SettingsClient({ org }: { org: Org | null }) {
             <span>Organization created</span>
             <span>{org?.created_at ? new Date(org.created_at).toLocaleDateString() : '—'}</span>
           </div>
-          <Button variant="outline" asChild>
-            <a href="/dashboard/billing">Manage billing →</a>
-          </Button>
+          <a
+            href="/dashboard/billing"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            Manage billing →
+          </a>
         </CardContent>
       </Card>
 
