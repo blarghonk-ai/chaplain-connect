@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 
 // Server-side Stripe client — only use in API routes and Server Components
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? 'sk_placeholder', {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: '2026-04-22.dahlia',
 })
 
 export const STRIPE_PRICES: Record<string, string> = {
