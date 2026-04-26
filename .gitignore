@@ -1,0 +1,5 @@
+# Claude Code local settings (may contain secrets)
+.claude/settings.local.json
+
+# macOS
+.DS_Store

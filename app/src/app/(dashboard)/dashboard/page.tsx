@@ -65,19 +65,22 @@ export default async function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Phase 1 Complete</CardTitle>
-          <CardDescription>Foundation is live. Next up: Ministry Platform features.</CardDescription>
+          <CardTitle>Platform Progress</CardTitle>
+          <CardDescription>Phase 2 — Ministry Platform is live.</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="text-sm space-y-1 text-muted-foreground">
             <li>✅ Multi-tenant organization setup</li>
             <li>✅ Authentication (email, magic link, Google OAuth)</li>
-            <li>✅ Role-based access control</li>
-            <li>✅ Row Level Security enforced</li>
-            <li>✅ Audit log foundation</li>
-            <li>⏳ Live video (Phase 2)</li>
-            <li>⏳ Real-time chat (Phase 2)</li>
-            <li>⏳ Video library (Phase 2)</li>
+            <li>✅ Role-based access control + Row Level Security</li>
+            <li>✅ Audit log (hash-chained, tamper-evident)</li>
+            <li>✅ Real-time chat (Supabase Realtime)</li>
+            <li>✅ Scripture browser (1000+ translations)</li>
+            <li>✅ AI Chaplain Assistant (Ollama — run locally)</li>
+            <li>⏳ Live video sessions (LiveKit — connect account)</li>
+            <li>⏳ Video library (Mux — connect account)</li>
+            <li>⏳ Appointment scheduling (Cal.com — connect account)</li>
+            <li>⏳ Stripe billing (connect keys)</li>
           </ul>
         </CardContent>
       </Card>
