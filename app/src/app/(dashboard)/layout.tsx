@@ -49,11 +49,16 @@ export default async function DashboardLayout({
           <NavLink href="/dashboard/schedule">Schedule</NavLink>
           <NavLink href="/dashboard/bible">Scripture</NavLink>
 
-          {profile?.role === 'org_admin' && (
+          <Separator className="my-2" />
+          <NavLink href="/dashboard/profile">Profile</NavLink>
+
+          {['org_admin', 'super_admin'].includes(profile?.role ?? '') && (
             <>
               <Separator className="my-2" />
               <NavLink href="/dashboard/team">Team</NavLink>
+              <NavLink href="/dashboard/billing">Billing</NavLink>
               <NavLink href="/dashboard/settings">Settings</NavLink>
+              <NavLink href="/dashboard/audit">Audit Log</NavLink>
             </>
           )}
         </nav>
