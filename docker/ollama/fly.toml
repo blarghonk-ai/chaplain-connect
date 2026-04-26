@@ -1,0 +1,36 @@
+# Fly.io configuration for Ollama deployment
+# Deploy with: fly launch --config fly.toml
+# Then: fly deploy
+
+app = "chaplain-ollama"
+primary_region = "iad"   # us-east — change to match your Vercel region
+
+[build]
+  image = "ollama/ollama:latest"
+
+[env]
+  OLLAMA_ORIGINS = "*"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 11434
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+[mounts]
+  source = "ollama_models"
+  destination = "/root/.ollama"
+
+[[vm]]
+  size = "performance-2x"   # 4 vCPU, 8GB RAM — handles llama3.2 fine
