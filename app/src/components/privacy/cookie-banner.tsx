@@ -132,7 +132,6 @@ export default function CookieBanner() {
   }
 
   const msg = JURISDICTION_MESSAGES[jurisdiction] ?? JURISDICTION_MESSAGES.default
-  const isOptIn = msg.model === 'opt_in'
 
   if (state === 'hidden') return null
 
@@ -187,15 +186,13 @@ export default function CookieBanner() {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
-            {isOptIn && (
-              <button
-                onClick={() => save(false, true)}
-                disabled={saving}
-                style={ghostBtnStyle}
-              >
-                Reject Non-Essential
-              </button>
-            )}
+            <button
+              onClick={() => save(false, true)}
+              disabled={saving}
+              style={ghostBtnStyle}
+            >
+              Essential Only
+            </button>
             <button onClick={openCenter} style={secondaryBtnStyle}>
               Customize
             </button>
@@ -468,15 +465,13 @@ export default function CookieBanner() {
             Consent ID: {anonId.slice(0, 8)}…
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {isOptIn && (
-              <button
-                onClick={() => save(false, true)}
-                disabled={saving}
-                style={ghostBtnStyle}
-              >
-                Reject Non-Essential
-              </button>
-            )}
+            <button
+              onClick={() => save(false, true)}
+              disabled={saving}
+              style={ghostBtnStyle}
+            >
+              Essential Only
+            </button>
             <button
               onClick={() => save(false)}
               disabled={saving}
