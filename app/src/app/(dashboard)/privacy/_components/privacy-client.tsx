@@ -8,6 +8,8 @@ import DataMapTab from './data-map-tab'
 import RopaTab from './ropa-tab'
 import AssessmentsTab from './assessments-tab'
 import ReportsTab from './reports-tab'
+import RegulationsTab from './regulations-tab'
+import ConsentTab from './consent-tab'
 
 interface Stats {
   totalLocations: number
@@ -100,6 +102,8 @@ export default function PrivacyClient({ stats }: { stats: Stats }) {
           <TabsTrigger value="ropa">ROPA</TabsTrigger>
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="regulations">Regulations</TabsTrigger>
+          <TabsTrigger value="consent">Consent</TabsTrigger>
         </TabsList>
 
         <TabsContent value="data-map" className="mt-4">
@@ -116,6 +120,14 @@ export default function PrivacyClient({ stats }: { stats: Stats }) {
 
         <TabsContent value="reports" className="mt-4">
           <ReportsTab totalLocations={stats.totalLocations} />
+        </TabsContent>
+
+        <TabsContent value="regulations" className="mt-4">
+          <RegulationsTab />
+        </TabsContent>
+
+        <TabsContent value="consent" className="mt-4">
+          <ConsentTab />
         </TabsContent>
       </Tabs>
     </div>
