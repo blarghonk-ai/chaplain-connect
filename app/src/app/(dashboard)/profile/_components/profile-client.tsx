@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
+import Link from 'next/link'
 
 type Profile = {
   id: string
@@ -35,6 +37,34 @@ export default function ProfileClient({ profile, email }: { profile: Profile | n
   const [pwLoading, setPwLoading] = useState(false)
   const [pwSaved, setPwSaved] = useState(false)
   const [pwError, setPwError] = useState<string | null>(null)
+
+  // MFA state
+  type MFAFactor = { id: string; type: 'totp' | 'phone'; status: string; phone?: string }
+  const [mfaFactors, setMfaFactors] = useState<MFAFactor[]>([])
+  const [mfaLoading, setMfaLoading] = useState(true)
+  const [mfaRemoving, setMfaRemoving] = useState(false)
+  const isAdmin = ['org_admin', 'super_admin'].includes(profile?.role ?? '')
+
+  useEffect(() => {
+    async function loadMFA() {
+      const { data } = await supabase.auth.mfa.listFactors()
+      const factors: MFAFactor[] = [
+        ...(data?.totp ?? []).map(f => ({ id: f.id, type: 'totp' as const, status: f.status })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...((data as any)?.phone ?? []).map((f: any) => ({ id: f.id, type: 'phone' as const, status: f.status, phone: f.phone })),
+      ]
+      setMfaFactors(factors)
+      setMfaLoading(false)
+    }
+    loadMFA()
+  }, [supabase])
+
+  async function removeFactor(factorId: string) {
+    setMfaRemoving(true)
+    await supabase.auth.mfa.unenroll({ factorId })
+    setMfaFactors(prev => prev.filter(f => f.id !== factorId))
+    setMfaRemoving(false)
+  }
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -148,6 +178,69 @@ export default function ProfileClient({ profile, email }: { profile: Profile | n
               {pwLoading ? 'Updating…' : 'Update password'}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Two-Factor Authentication */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Two-Factor Authentication</CardTitle>
+          <CardDescription>
+            {isAdmin
+              ? 'Required for your role. Authenticator app only.'
+              : 'Add an extra layer of security. Use your phone or an authenticator app.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mfaLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : mfaFactors.filter(f => f.status === 'verified').length === 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+                <p className="text-sm text-muted-foreground">Not enabled</p>
+              </div>
+              {!isAdmin && (
+                <Link href="/mfa/setup" className={buttonVariants({ size: 'sm' })}>
+                  Enable Two-Factor Authentication
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {mfaFactors.filter(f => f.status === 'verified').map(f => (
+                <div key={f.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {f.type === 'totp' ? 'Authenticator App' : 'Phone (SMS)'}
+                      </p>
+                      {f.phone && (
+                        <p className="text-xs text-muted-foreground">{f.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                  {!isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={mfaRemoving}
+                      onClick={() => removeFactor(f.id)}
+                      className="text-xs text-destructive hover:text-destructive hover:border-destructive/50"
+                    >
+                      {mfaRemoving ? 'Removing…' : 'Remove'}
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {!isAdmin && (
+                <Link href="/mfa/setup" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+                  Add another method
+                </Link>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
