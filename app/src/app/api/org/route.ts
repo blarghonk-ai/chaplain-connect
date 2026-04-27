@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json()
-  const allowed = ['name', 'logo_url']
+  const allowed = ['name', 'logo_url', 'country_code']
   const updates = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)))
 
   if (Object.keys(updates).length === 0) {

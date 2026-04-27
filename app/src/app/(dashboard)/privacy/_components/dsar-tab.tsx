@@ -52,6 +52,7 @@ export default function DsarTab() {
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [runningAgent, setRunningAgent] = useState(false)
+  const [executingId, setExecutingId] = useState<string | null>(null)
   const [form, setForm] = useState({
     subject_email: '',
     request_type: 'access',
@@ -95,6 +96,23 @@ export default function DsarTab() {
       load()
     } finally {
       setRunningAgent(false)
+    }
+  }
+
+  async function executeDeletion(id: string) {
+    if (!confirm('Execute deletion for this erasure request? A signed receipt will be created.')) return
+    setExecutingId(id)
+    try {
+      const res = await fetch(`/api/privacy/dsar/${id}/execute`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(`Error: ${data.error}`)
+      } else {
+        alert(`Deletion executed. Receipt ID: ${data.receipt_id}\nHash: ${data.deletion_hash.slice(0, 16)}…`)
+        load()
+      }
+    } finally {
+      setExecutingId(null)
     }
   }
 
@@ -221,9 +239,22 @@ export default function DsarTab() {
                       <p className="text-xs text-muted-foreground mt-1 italic">{req.notes}</p>
                     )}
                   </div>
-                  <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${STATUS_COLORS[req.status] ?? 'bg-gray-100'}`}>
-                    {req.status.replace('_', ' ')}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {req.request_type === 'erasure' && req.status === 'in_progress' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-6 px-2 text-destructive hover:text-destructive hover:border-destructive/50"
+                        disabled={executingId === req.id}
+                        onClick={() => executeDeletion(req.id)}
+                      >
+                        {executingId === req.id ? 'Executing…' : 'Execute deletion'}
+                      </Button>
+                    )}
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${STATUS_COLORS[req.status] ?? 'bg-gray-100'}`}>
+                      {req.status.replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
