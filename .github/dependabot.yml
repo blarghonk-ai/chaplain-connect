@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  # npm/bun dependencies in the app
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    open-pull-requests-limit: 10
+    groups:
+      # Group minor/patch updates into a single PR
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Review major updates manually
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions themselves
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    open-pull-requests-limit: 5

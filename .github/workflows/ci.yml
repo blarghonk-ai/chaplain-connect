@@ -1,0 +1,282 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Minimal permissions by default — each job escalates only what it needs
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: '1.2.0'
+  NODE_VERSION: '20'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1: Secret Scanning — runs first, blocks everything else if secrets found
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  secret-scan:
+    name: 🔐 Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0   # full history required for accurate secret detection
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24edf40b495b5b852f73c  # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2: Dependency Review — flags new high/critical vulns introduced by a PR
+# ─────────────────────────────────────────────────────────────────────────────
+  dependency-review:
+    name: 📦 Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019  # v4.5.0
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0   # protect commercial usage
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3: SAST — Static Application Security Testing (CodeQL)
+# ─────────────────────────────────────────────────────────────────────────────
+  codeql:
+    name: 🔍 SAST (CodeQL)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 4: Semgrep — additional SAST rules tuned for Node/Next.js/TypeScript
+# ─────────────────────────────────────────────────────────────────────────────
+  semgrep:
+    name: 🔍 SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    container:
+      image: semgrep/semgrep:latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Run Semgrep
+        run: |
+          semgrep ci \
+            --config=p/typescript \
+            --config=p/react \
+            --config=p/nextjs \
+            --config=p/nodejs \
+            --config=p/owasp-top-ten \
+            --config=p/jwt \
+            --config=p/sql-injection \
+            --sarif --output=semgrep.sarif || true
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 5: IaC Security — scan Dockerfiles and GitHub Actions workflows
+# ─────────────────────────────────────────────────────────────────────────────
+  checkov:
+    name: 🏗️ IaC Security (Checkov)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,github_actions
+          output_format: sarif
+          output_file_path: checkov.sarif
+          soft_fail: true   # report findings, don't block (tighten after baseline)
+
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 6: Vulnerability Scanning — Trivy scans filesystem and config files
+# ─────────────────────────────────────────────────────────────────────────────
+  trivy:
+    name: 🛡️ Vulnerability Scan (Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: app/
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+
+      - name: Run Trivy config scan (misconfigurations)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          exit-code: '0'   # warn only on config findings
+
+      - name: Upload Trivy config SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-config.sarif
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 7: Type Check & Lint
+# ─────────────────────────────────────────────────────────────────────────────
+  lint:
+    name: ✅ Type Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript type check
+        working-directory: app
+        run: bun tsc --noEmit
+
+      - name: ESLint
+        working-directory: app
+        run: bun eslint src --max-warnings 0
+
+      - name: Check for npm audit issues
+        working-directory: app
+        run: bun audit --audit-level=high || true   # informational for now
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 8: Build — verifies the app compiles cleanly
+# ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: [secret-scan, lint]
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      GROQ_API_KEY: gsk_placeholder
+      GROQ_MODEL: llama-3.3-70b-versatile
+      STRIPE_SECRET_KEY: sk_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_placeholder
+      STRIPE_PRICE_STARTER: price_placeholder
+      STRIPE_PRICE_PROFESSIONAL: price_placeholder
+      STRIPE_PRICE_ENTERPRISE: price_placeholder
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: app
+        run: bun run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build-${{ github.sha }}
+          path: app/.next/
+          retention-days: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 9: SBOM — generate Software Bill of Materials on every main push
+# ─────────────────────────────────────────────────────────────────────────────
+  sbom:
+    name: 📋 SBOM Generation
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+      id-token: write   # for OIDC signing
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          path: app/
+          format: spdx-json
+          output-file: chaplain-connect-sbom.spdx.json
+          artifact-name: sbom-${{ github.sha }}.spdx.json
+
+      - name: Scan SBOM with Grype
+        uses: anchore/scan-action@v3
+        with:
+          sbom: chaplain-connect-sbom.spdx.json
+          fail-build: false
+          severity-cutoff: critical
+          output-format: table
