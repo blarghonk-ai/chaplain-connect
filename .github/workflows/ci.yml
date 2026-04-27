@@ -274,7 +274,7 @@ jobs:
           artifact-name: sbom-${{ github.sha }}.spdx.json
 
       - name: Scan SBOM with Grype
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v7
         with:
           sbom: chaplain-connect-sbom.spdx.json
           fail-build: false
