@@ -10,6 +10,8 @@ import AssessmentsTab from './assessments-tab'
 import ReportsTab from './reports-tab'
 import RegulationsTab from './regulations-tab'
 import ConsentTab from './consent-tab'
+import ViolationsTab from './violations-tab'
+import DsarTab from './dsar-tab'
 
 interface Stats {
   totalLocations: number
@@ -104,6 +106,8 @@ export default function PrivacyClient({ stats }: { stats: Stats }) {
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="regulations">Regulations</TabsTrigger>
           <TabsTrigger value="consent">Consent</TabsTrigger>
+          <TabsTrigger value="violations">Violations</TabsTrigger>
+          <TabsTrigger value="dsar">DSARs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="data-map" className="mt-4">
@@ -128,6 +132,14 @@ export default function PrivacyClient({ stats }: { stats: Stats }) {
 
         <TabsContent value="consent" className="mt-4">
           <ConsentTab />
+        </TabsContent>
+
+        <TabsContent value="violations" className="mt-4">
+          <ViolationsTab />
+        </TabsContent>
+
+        <TabsContent value="dsar" className="mt-4">
+          <DsarTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -63,16 +63,24 @@ export default function AgentRegistryTab() {
     setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, status: newStatus } : a))
   }
 
+  const RUN_ENDPOINTS: Partial<Record<string, string>> = {
+    compliance: '/api/agents/compliance/run',
+    privacy:    '/api/agents/privacy/run',
+    data:       '/api/agents/data/run',
+    retention:  '/api/agents/retention/run',
+    dsar:       '/api/agents/dsar/run',
+  }
+
   async function runAgent(agent: Agent) {
-    if (agent.agent_type !== 'compliance') return // only compliance built so far
+    const endpoint = RUN_ENDPOINTS[agent.agent_type]
+    if (!endpoint) return
     setRunning(agent.id)
     try {
-      const res = await fetch('/api/agents/compliance/run', { method: 'POST' })
+      const res = await fetch(endpoint, { method: 'POST' })
       const data = await res.json()
-      // Refresh agents list to show last_run
       const refreshed = await fetch('/api/agents').then(r => r.json())
       setAgents(refreshed.agents ?? [])
-      alert(`Run complete: ${data.findingsCount} findings, ${data.pendingApprovals} pending approval`)
+      alert(`${agent.name} completed: ${data.findingsCount} findings, ${data.pendingApprovals} pending approval`)
     } catch (err) {
       alert(`Run failed: ${err}`)
     } finally {
@@ -129,7 +137,7 @@ export default function AgentRegistryTab() {
             )}
 
             <div className="flex gap-2">
-              {agent.agent_type === 'compliance' && (
+              {RUN_ENDPOINTS[agent.agent_type] ? (
                 <Button
                   size="sm"
                   variant="outline"
@@ -139,14 +147,13 @@ export default function AgentRegistryTab() {
                 >
                   {running === agent.id ? 'Running…' : 'Run Now'}
                 </Button>
-              )}
-              {agent.agent_type !== 'compliance' && (
+              ) : (
                 <Button
                   size="sm"
                   variant="outline"
                   className="flex-1 text-xs opacity-50"
                   disabled
-                  title="This agent will be available in a future phase"
+                  title="Coming in a future phase"
                 >
                   Coming soon
                 </Button>
