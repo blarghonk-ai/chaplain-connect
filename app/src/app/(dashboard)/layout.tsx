@@ -65,6 +65,7 @@ export default async function DashboardLayout({
                 <>
                   <NavLink href="/dashboard/grc">GRC Engine</NavLink>
                   <NavLink href="/dashboard/privacy">Privacy</NavLink>
+                  <NavLink href="/dashboard/agents">Agents</NavLink>
                 </>
               )}
             </>
