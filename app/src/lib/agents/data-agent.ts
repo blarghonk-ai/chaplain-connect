@@ -204,10 +204,166 @@ export async function dataAgentLogic(
     }
   }
 
-  // Batch insert new violations
+  // Batch insert schema-level violations
   if (newViolations.length > 0) {
     await admin.from('data_violations').insert(newViolations)
   }
 
+  // ── Phase 6: Real content scanning ───────────────────────────
+  // Scan actual column data for PII patterns, not just column names.
+  // Runs after schema checks so schema violations are always captured first.
+  const contentFindings = await scanColumnContent(admin, openViolationKeys)
+  findings.push(...contentFindings.findings)
+  if (contentFindings.violations.length > 0) {
+    await admin.from('data_violations').insert(contentFindings.violations)
+  }
+
   return findings
+}
+
+// Regex patterns for content scanning
+const PAN_CONTENT_REGEX = '\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b'
+const SSN_CONTENT_REGEX = '\\b\\d{3}-\\d{2}-\\d{4}\\b'
+const EMAIL_CONTENT_REGEX = '[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}'
+
+// Tables/columns to actively scan (high-risk targets)
+const SCAN_TARGETS: Array<{ table: string; column: string; label: string }> = [
+  { table: 'messages',       column: 'content',   label: 'Chat messages' },
+  { table: 'posts',          column: 'content',   label: 'Posts' },
+  { table: 'profiles',       column: 'full_name', label: 'Profile names' },
+  { table: 'audit_logs',     column: 'metadata',  label: 'Audit log metadata' },
+  { table: 'session_notes',  column: 'notes',     label: 'Session notes' },
+]
+
+function maskSample(raw: string): string {
+  // Replace digits in PAN-like sequences with X, keep last 4
+  return raw
+    .replace(/\b(\d{4})[- ]?(\d{4})[- ]?(\d{4})[- ]?(\d{4})\b/g, 'XXXX-XXXX-XXXX-$4')
+    .replace(/\b(\d{3})-(\d{2})-(\d{4})\b/g, 'XXX-XX-$3')
+    .replace(/([a-zA-Z0-9._%+\-]+)@([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, (_, u, d) => `${u[0]}***@${d}`)
+    .slice(0, 120)
+}
+
+async function scanColumnContent(
+  admin: SupabaseClient,
+  existingViolationKeys: Set<string>
+): Promise<{
+  findings: AgentFinding[]
+  violations: Array<{
+    violation_type: string
+    severity: string
+    table_name: string
+    column_name: string
+    description: string
+    metadata: Record<string, unknown>
+  }>
+}> {
+  const findings: AgentFinding[] = []
+  const violations: Array<{
+    violation_type: string
+    severity: string
+    table_name: string
+    column_name: string
+    description: string
+    metadata: Record<string, unknown>
+  }> = []
+
+  const patterns: Array<{
+    label: string
+    regex: string
+    violationType: string
+    severity: 'critical' | 'high' | 'medium'
+    findingTitle: string
+    pciRule?: string
+  }> = [
+    {
+      label: 'Credit Card PAN',
+      regex: PAN_CONTENT_REGEX,
+      violationType: 'pan_content',
+      severity: 'critical',
+      findingTitle: 'Card PAN content detected in',
+      pciRule: 'PCI-DSS 3.4',
+    },
+    {
+      label: 'SSN',
+      regex: SSN_CONTENT_REGEX,
+      violationType: 'ssn_content',
+      severity: 'high',
+      findingTitle: 'SSN content detected in',
+    },
+    {
+      label: 'Email address',
+      regex: EMAIL_CONTENT_REGEX,
+      violationType: 'email_in_content',
+      severity: 'medium',
+      findingTitle: 'Email addresses detected in',
+    },
+  ]
+
+  for (const target of SCAN_TARGETS) {
+    for (const pattern of patterns) {
+      // Skip email scanning in tables that legitimately contain emails
+      if (pattern.violationType === 'email_in_content' &&
+          ['profiles'].includes(target.table)) continue
+
+      const violKey = `${target.table}.${target.column}::${pattern.violationType}`
+      if (existingViolationKeys.has(violKey)) continue
+
+      try {
+        // Use postgres regex match via Supabase filter
+        const { data: matches, error } = await admin
+          .from(target.table)
+          .select(`id, ${target.column}`)
+          .filter(target.column, '~', pattern.regex)
+          .limit(3)
+
+        if (error || !matches?.length) continue
+
+        // Capture masked samples — never store raw PII
+        const samples = matches
+          .map(row => {
+            const val = String(((row as unknown) as Record<string, unknown>)[target.column] ?? '')
+            return maskSample(val)
+          })
+          .filter(Boolean)
+
+        violations.push({
+          violation_type: pattern.violationType,
+          severity: pattern.severity,
+          table_name: target.table,
+          column_name: target.column,
+          description: `${pattern.label} content detected in ${target.table}.${target.column} (${matches.length} sample${matches.length !== 1 ? 's' : ''} found). ${pattern.pciRule ? pattern.pciRule + ' violation.' : 'Verify this data should be stored here.'}`,
+          metadata: {
+            match_count: matches.length,
+            masked_samples: samples,
+            pattern_label: pattern.label,
+          },
+        })
+
+        if (pattern.severity === 'critical' || pattern.severity === 'high') {
+          findings.push({
+            title: `${pattern.findingTitle} ${target.table}.${target.column}`,
+            description: `Live content scan found ${pattern.label} data in "${target.table}.${target.column}" (${target.label}). ${matches.length} row(s) matched. Masked samples: ${samples.slice(0, 2).join(' | ')}`,
+            severity: pattern.severity,
+            decisionType: 'finding',
+            ruleTriggered: `content_scan_${pattern.violationType}`,
+            requiresHumanApproval: pattern.severity === 'critical',
+            proposedAction: `Immediately audit ${target.table}.${target.column} for ${pattern.label} values. Remove or migrate this data per ${pattern.pciRule ?? 'applicable privacy law'}. Do not store ${pattern.label} in this location.`,
+            slaHours: pattern.severity === 'critical' ? 1 : 24,
+            grcControlKeywords: ['pci', 'data', 'encryption', 'privacy'],
+            metadata: {
+              table: target.table,
+              column: target.column,
+              match_count: matches.length,
+              masked_samples: samples,
+            },
+          })
+        }
+      } catch {
+        // Table may not exist yet or column type may not support regex — skip gracefully
+      }
+    }
+  }
+
+  return { findings, violations }
 }

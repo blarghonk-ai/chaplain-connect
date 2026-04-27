@@ -5,6 +5,8 @@ const STALE_EVIDENCE_DAYS = 90
 const CRITICAL_VULN_MAX_DAYS = 7
 const HIGH_VULN_MAX_DAYS = 30
 const RISK_REVIEW_MAX_DAYS = 90
+const AUDIT_WARN_DAYS = 90   // Warn when audit date is within 90 days
+const UNOWNED_CONTROLS_THRESHOLD = 5
 
 export async function complianceAgentLogic(
   _runId: string,
@@ -188,6 +190,60 @@ export async function complianceAgentLogic(
         proposedAction: `Review all not-started controls in ${fwKey.toUpperCase()} and assign owners and due dates.`,
         metadata: { framework: fwKey, pct, implemented: stats.implemented, total: stats.total },
         slaHours: 24,
+      })
+    }
+  }
+
+  // ── Rule 7: GRC controls with no assigned owner ───────────────
+  const { data: unownedImpls } = await admin
+    .from('grc_implementations')
+    .select('id, status, grc_controls(control_id, title)')
+    .is('owner_id', null)
+    .in('status', ['in_progress', 'implemented', 'evidence_collected'])
+
+  if ((unownedImpls?.length ?? 0) > UNOWNED_CONTROLS_THRESHOLD) {
+    findings.push({
+      title: `${unownedImpls!.length} active controls have no assigned owner`,
+      description: `${unownedImpls!.length} controls currently in active status (in_progress, implemented, or evidence_collected) have no owner assigned. SOC 2 CC1.3 requires accountability for each control — without owners, evidence collection and remediation have no clear responsible party.`,
+      severity: 'medium',
+      decisionType: 'finding',
+      ruleTriggered: 'controls_no_owner',
+      requiresHumanApproval: false,
+      proposedAction: 'Assign owner_id to all active controls in the GRC dashboard. Filter by status and bulk-assign ownership.',
+      slaHours: 72,
+      grcControlKeywords: ['CC1', 'governance', 'ownership', 'control'],
+      metadata: { unowned_count: unownedImpls!.length },
+    })
+  }
+
+  // ── Rule 8: Audit target date proximity ───────────────────────
+  // Read target_audit_date from ComplianceAgent config (set by admin)
+  const { data: agentRow } = await admin
+    .from('agent_registry')
+    .select('config')
+    .eq('agent_type', 'compliance')
+    .single()
+
+  const targetAuditDate = agentRow?.config?.target_audit_date
+    ? new Date(agentRow.config.target_audit_date as string)
+    : null
+
+  if (targetAuditDate) {
+    const daysUntilAudit = Math.ceil(
+      (targetAuditDate.getTime() - now.getTime()) / 86_400_000
+    )
+    if (daysUntilAudit > 0 && daysUntilAudit <= AUDIT_WARN_DAYS) {
+      findings.push({
+        title: `SOC 2 audit in ${daysUntilAudit} days — readiness check required`,
+        description: `Target audit date is ${targetAuditDate.toLocaleDateString()} (${daysUntilAudit} days). With ${daysUntilAudit} days remaining, all controls must have current evidence, all critical vulnerabilities must be resolved, and the observation period must be intact.`,
+        severity: daysUntilAudit <= 30 ? 'critical' : 'high',
+        decisionType: 'finding',
+        ruleTriggered: 'audit_date_proximity',
+        requiresHumanApproval: false,
+        proposedAction: `Run full audit readiness review: check for stale evidence, unimplemented controls, open critical vulns, and any compliance score drops. Generate audit package from Privacy → Reports.`,
+        slaHours: daysUntilAudit <= 30 ? 24 : 72,
+        grcControlKeywords: ['audit', 'SOC', 'evidence', 'readiness'],
+        metadata: { target_audit_date: targetAuditDate.toISOString(), days_remaining: daysUntilAudit },
       })
     }
   }

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import AgentRegistryTab from './agent-registry-tab'
 import ApprovalQueueTab from './approval-queue-tab'
 import RunHistoryTab from './run-history-tab'
+import SecurityEventsTab from './security-events-tab'
 
 interface Stats {
   totalAgents: number
@@ -93,6 +94,7 @@ export default function AgentsClient({ stats }: { stats: Stats }) {
             )}
           </TabsTrigger>
           <TabsTrigger value="history">Run History</TabsTrigger>
+          <TabsTrigger value="security">Security Events</TabsTrigger>
         </TabsList>
 
         <TabsContent value="registry" className="mt-4">
@@ -103,6 +105,9 @@ export default function AgentsClient({ stats }: { stats: Stats }) {
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <RunHistoryTab />
+        </TabsContent>
+        <TabsContent value="security" className="mt-4">
+          <SecurityEventsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -66,6 +66,7 @@ export default function AgentRegistryTab() {
   const RUN_ENDPOINTS: Partial<Record<string, string>> = {
     compliance: '/api/agents/compliance/run',
     privacy:    '/api/agents/privacy/run',
+    security:   '/api/agents/security/run',
     data:       '/api/agents/data/run',
     retention:  '/api/agents/retention/run',
     dsar:       '/api/agents/dsar/run',
