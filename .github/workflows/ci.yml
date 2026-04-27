@@ -280,3 +280,100 @@ jobs:
           fail-build: false
           severity-cutoff: critical
           output-format: table
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 10: GRC Evidence Ingestion — posts CI results to the GRC dashboard
+#
+# Requires GitHub Secrets:
+#   GRC_INGEST_TOKEN  — Bearer token matching GRC_INGEST_TOKEN in Vercel env
+#   APP_URL           — Production URL, e.g. https://chaplain-connect.vercel.app
+# ─────────────────────────────────────────────────────────────────────────────
+  grc-ingest:
+    name: 📊 GRC Evidence Ingestion
+    runs-on: ubuntu-latest
+    needs: [secret-scan, codeql, semgrep, checkov, trivy, lint, build, sbom]
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      secrets.GRC_INGEST_TOKEN != '' &&
+      secrets.APP_URL != ''
+    permissions:
+      security-events: read   # read Code Scanning alert counts
+    steps:
+      - name: Query Code Scanning alert counts
+        id: alerts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          query_alerts() {
+            local tool="$1"
+            gh api --paginate \
+              "/repos/${{ github.repository }}/code-scanning/alerts" \
+              -f tool_name="${tool}" \
+              -f state=open \
+              --jq '.[].number' 2>/dev/null | wc -l | tr -d ' ' || echo 0
+          }
+
+          echo "codeql=$(query_alerts 'CodeQL')"       >> "$GITHUB_OUTPUT"
+          echo "semgrep=$(query_alerts 'Semgrep OSS')" >> "$GITHUB_OUTPUT"
+          echo "checkov=$(query_alerts 'Checkov')"     >> "$GITHUB_OUTPUT"
+          echo "trivy=$(query_alerts 'Trivy')"         >> "$GITHUB_OUTPUT"
+
+      - name: Build and POST evidence payload
+        env:
+          GRC_INGEST_TOKEN: ${{ secrets.GRC_INGEST_TOKEN }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          PAYLOAD=$(jq -n \
+            --arg run_id    "${{ github.run_id }}" \
+            --arg run_url   "${RUN_URL}" \
+            --arg sha       "${{ github.sha }}" \
+            --arg ref       "${{ github.ref_name }}" \
+            --arg workflow  "${{ github.workflow }}" \
+            --arg secret_r  "${{ needs.secret-scan.result }}" \
+            --arg codeql_r  "${{ needs.codeql.result }}" \
+            --argjson codeql_n  "${{ steps.alerts.outputs.codeql || 0 }}" \
+            --arg semgrep_r "${{ needs.semgrep.result }}" \
+            --argjson semgrep_n "${{ steps.alerts.outputs.semgrep || 0 }}" \
+            --arg checkov_r "${{ needs.checkov.result }}" \
+            --argjson checkov_n "${{ steps.alerts.outputs.checkov || 0 }}" \
+            --arg trivy_r   "${{ needs.trivy.result }}" \
+            --argjson trivy_n   "${{ steps.alerts.outputs.trivy || 0 }}" \
+            --arg lint_r    "${{ needs.lint.result }}" \
+            --arg build_r   "${{ needs.build.result }}" \
+            --arg sbom_r    "${{ needs.sbom.result }}" \
+            '{
+              run_id:     $run_id,
+              run_url:    $run_url,
+              commit_sha: $sha,
+              ref:        $ref,
+              workflow:   $workflow,
+              jobs: [
+                { tool: "gitleaks", outcome: $secret_r,  open_alerts: 0 },
+                { tool: "codeql",   outcome: $codeql_r,  open_alerts: $codeql_n },
+                { tool: "semgrep",  outcome: $semgrep_r, open_alerts: $semgrep_n },
+                { tool: "checkov",  outcome: $checkov_r, open_alerts: $checkov_n },
+                { tool: "trivy",    outcome: $trivy_r,   open_alerts: $trivy_n },
+                { tool: "grype",    outcome: $sbom_r,    open_alerts: 0 },
+                { tool: "lint",     outcome: $lint_r,    open_alerts: 0 },
+                { tool: "build",    outcome: $build_r,   open_alerts: 0 }
+              ]
+            }')
+
+          HTTP_STATUS=$(curl -s -o /tmp/grc_response.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${GRC_INGEST_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "${APP_URL}/api/grc/evidence/ingest")
+
+          echo "HTTP status: ${HTTP_STATUS}"
+          cat /tmp/grc_response.json
+
+          if [ "${HTTP_STATUS}" -lt 200 ] || [ "${HTTP_STATUS}" -ge 300 ]; then
+            echo "::error::GRC ingest returned HTTP ${HTTP_STATUS}"
+            exit 1
+          fi
