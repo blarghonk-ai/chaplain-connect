@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role, organizations(name)')
+    .select('full_name, role, org_id, organizations(name)')
     .eq('id', user.id)
     .single()
 
@@ -38,6 +38,25 @@ export default async function DashboardLayout({
     }
   }
 
+  // ── Subscription enforcement ─────────────────────────────────────────
+  // canceled/unpaid orgs are blocked; past_due gets a warning banner.
+  let subscriptionStatus: string | null = null
+  if (profile?.org_id) {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('status')
+      .eq('org_id', profile.org_id)
+      .single()
+    subscriptionStatus = sub?.status ?? null
+
+    if (subscriptionStatus === 'canceled' || subscriptionStatus === 'unpaid') {
+      redirect('/billing/suspended')
+    }
+  }
+
+  const isPastDue = subscriptionStatus === 'past_due'
+  const isAdmin = ['org_admin', 'super_admin'].includes(profile?.role ?? '')
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
       <SidebarNav
@@ -46,6 +65,42 @@ export default async function DashboardLayout({
         orgName={org?.name ?? null}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+        {isPastDue && (
+          <div style={{
+            background: 'oklch(92% 0.055 52)', borderBottom: '1px solid oklch(80% 0.090 52)',
+            padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12, flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="oklch(45% 0.160 52)" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'oklch(32% 0.130 52)' }}>
+                Your subscription payment is past due.
+                {isAdmin
+                  ? ' Please update your payment method to avoid service interruption.'
+                  : ' Please contact your administrator.'}
+              </span>
+            </div>
+            {isAdmin && (
+              <a
+                href="/billing"
+                style={{
+                  fontSize: 12, fontWeight: 700, color: 'oklch(32% 0.130 52)',
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                  padding: '4px 12px', borderRadius: 6,
+                  border: '1.5px solid oklch(68% 0.120 52)',
+                  background: 'oklch(96% 0.025 52)',
+                }}
+              >
+                Go to Billing →
+              </a>
+            )}
+          </div>
+        )}
         {children}
       </div>
     </div>
