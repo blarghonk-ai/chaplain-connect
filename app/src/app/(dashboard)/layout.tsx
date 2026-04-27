@@ -61,6 +61,9 @@ export default async function DashboardLayout({
               <NavLink href="/dashboard/billing">Billing</NavLink>
               <NavLink href="/dashboard/settings">Settings</NavLink>
               <NavLink href="/dashboard/audit">Audit Log</NavLink>
+              {profile?.role === 'super_admin' && (
+                <NavLink href="/dashboard/grc">GRC Engine</NavLink>
+              )}
             </>
           )}
         </nav>

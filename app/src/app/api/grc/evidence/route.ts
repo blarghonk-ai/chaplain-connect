@@ -1,0 +1,23 @@
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'super_admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from('grc_evidence')
+    .select(`
+      id, title, description, source, source_url, collected_at, hash,
+      grc_controls (control_id)
+    `)
+    .order('collected_at', { ascending: false })
+    .limit(200)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ evidence: data ?? [] })
+}
