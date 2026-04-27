@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-jakarta);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,82 +49,184 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* ── Chaplain Connect Design System ─────────────────────────── */
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Sidebar — deep purple, high contrast */
+  --s-bg:      oklch(20% 0.090 290);
+  --s-active:  oklch(30% 0.105 290);
+  --s-hover:   oklch(25% 0.096 290);
+  --s-border:  oklch(28% 0.095 290);
+  --s-text:    oklch(97% 0.006 290);
+  --s-muted:   oklch(82% 0.028 290);
+  --s-logo:    oklch(80% 0.140 290);
+
+  /* Ministry main — light lavender, high contrast */
+  --m-bg:      oklch(88% 0.065 290);
+  --m-surface: #ffffff;
+  --m-border:  oklch(74% 0.022 290);
+  --m-border2: oklch(62% 0.030 290);
+  --m-text:    oklch(10% 0.012 290);
+  --m-muted:   oklch(33% 0.020 290);
+  --m-faint:   oklch(44% 0.016 290);
+  --m-green:   oklch(30% 0.120 290);
+  --m-green2:  oklch(40% 0.125 290);
+  --m-gl:      oklch(93% 0.032 290);
+  --m-glb:     oklch(76% 0.065 290);
+
+  /* GRC — light blue-slate, high contrast */
+  --g-bg:      oklch(96% 0.008 260);
+  --g-surface: #ffffff;
+  --g-card:    oklch(97% 0.006 260);
+  --g-border:  oklch(72% 0.022 260);
+  --g-text:    oklch(10% 0.012 260);
+  --g-muted:   oklch(34% 0.018 260);
+  --g-faint:   oklch(55% 0.014 260);
+  --g-blue:    oklch(35% 0.160 235);
+  --g-red:     oklch(42% 0.200 25);
+  --g-orange:  oklch(48% 0.160 52);
+  --g-yellow:  oklch(48% 0.150 75);
+  --g-green:   oklch(36% 0.160 148);
+
+  /* ── Shadcn / Tailwind tokens mapped to design palette ──────── */
+  --background: oklch(1 0 0);
+  --foreground: var(--m-text);
+  --card: var(--m-surface);
+  --card-foreground: var(--m-text);
+  --popover: var(--m-surface);
+  --popover-foreground: var(--m-text);
+  --primary: var(--m-green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--m-gl);
+  --secondary-foreground: var(--m-text);
+  --muted: var(--m-gl);
+  --muted-foreground: var(--m-muted);
+  --accent: var(--m-gl);
+  --accent-foreground: var(--m-text);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: var(--m-border);
+  --input: var(--m-surface);
+  --ring: var(--m-green);
+  --radius: 0.625rem;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: var(--s-bg);
+  --sidebar-foreground: var(--s-text);
+  --sidebar-primary: var(--s-logo);
+  --sidebar-primary-foreground: var(--s-bg);
+  --sidebar-accent: var(--s-active);
+  --sidebar-accent-foreground: var(--s-text);
+  --sidebar-border: var(--s-border);
+  --sidebar-ring: var(--s-logo);
 }
 
 @layer base {
-  * {
+  *, *::before, *::after {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
   }
   body {
+    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    -webkit-font-smoothing: antialiased;
+    font-size: 15px;
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
-  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: oklch(70% 0.04 290); border-radius: 10px; }
+}
+
+/* ── Sidebar nav item styles ─────────────────────────────────── */
+.cc-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-radius: 8px;
+  color: var(--s-text);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  transition: background 0.12s;
+  width: 100%;
+}
+.cc-nav-item:hover {
+  background: var(--s-hover);
+}
+.cc-nav-item.cc-active {
+  background: var(--s-active);
+  font-weight: 700;
+  border-left-color: var(--s-logo);
+}
+
+.cc-ai-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: oklch(28% 0.100 290);
+  color: var(--s-text);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 10px;
+  border-left: 3px solid oklch(60% 0.140 290);
+  transition: background 0.12s;
+  width: 100%;
+}
+.cc-ai-btn:hover {
+  background: var(--s-hover);
+}
+.cc-ai-btn.cc-active {
+  background: var(--s-active);
+  border-left-color: var(--s-logo);
+}
+
+/* ── Page header pattern ─────────────────────────────────────── */
+.cc-page-header {
+  border-bottom: 1px solid var(--m-border);
+  background: var(--m-surface);
+  padding: 22px 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cc-page-eyebrow {
+  font-size: 11px;
+  color: var(--m-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.cc-page-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--m-text);
+  letter-spacing: -0.02em;
+}
+.cc-page-content {
+  padding: 36px 44px;
+}
+
+/* ── Card hover lift ─────────────────────────────────────────── */
+.cc-card-hover {
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.cc-card-hover:hover {
+  box-shadow: 0 8px 28px oklch(0% 0 0 / 0.08);
+  transform: translateY(-2px);
+}
+
+/* ── Lora serif helper ───────────────────────────────────────── */
+.font-lora {
+  font-family: var(--font-lora, 'Lora', Georgia, serif);
+}
+.font-jetbrains {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
