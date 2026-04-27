@@ -45,8 +45,8 @@ export default async function DashboardLayout({
           <NavLink href="/dashboard">Dashboard</NavLink>
           <NavLink href="/dashboard/sessions">Sessions</NavLink>
           <NavLink href="/dashboard/chat">Chat</NavLink>
+          <NavLink href="/dashboard/posts">Content</NavLink>
           <NavLink href="/dashboard/videos">Video Library</NavLink>
-          <NavLink href="/dashboard/sessions">Sessions</NavLink>
           <NavLink href="/dashboard/schedule">Schedule</NavLink>
           <NavLink href="/dashboard/bible">Scripture</NavLink>
           <NavLink href="/dashboard/ai">AI Assistant</NavLink>
